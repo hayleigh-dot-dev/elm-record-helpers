@@ -5,7 +5,7 @@
   "main": "",
   "scripts": {
     "dev": "npx parcel src/index.html",
-    "deploy": "npx parcel build src/index.html && npx gh-pages -d dist -b master"
+    "deploy": "node deploy"
   },
   "author": "",
   "license": "",
