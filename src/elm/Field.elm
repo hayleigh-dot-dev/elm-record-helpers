@@ -10,9 +10,17 @@ import String.Extra as String
 import Regex exposing (Regex)
 
 -- Types -----------------------------------------------------------------------
+-- The Field type represents a record field and it's type, e.g:
+--   { count : Int }
+-- becomes
+--   Field "count" "Int"
 type Field
   = Field String String
 
+-- These options are used by `toString` to determine which helper functions to
+-- generate. If either `withTypes` or `withGenerics` are true then the update
+-- helper function will always be generated. Additionally, getters and setters
+-- can be toggled too.
 type alias Options =
   { withTypes : Bool
   , withGenerics : Bool
@@ -21,13 +29,14 @@ type alias Options =
   }
 
 -- Constants -------------------------------------------------------------------
---
+-- This regex grabs the field string from an Elm record.
 fields : Regex
 fields =
   "(?<=[{,] *)[a-z]\\w*(?= *:)"
     |> Regex.fromString
     |> Maybe.withDefault Regex.never
 
+-- This regex grabs the type of a field from an Elm record.
 types : Regex
 types =
   "(?<=: *)[A-z]\\w*"
@@ -35,20 +44,30 @@ types =
     |> Maybe.withDefault Regex.never
 
 -- Functions -------------------------------------------------------------------
---
+-- We're only interested in the `match` part of the regex result record so this
+-- utility just maps over all the matches and pulls out that string.
 match : Regex -> String -> List String
 match regex string =
   Regex.find regex string
     |> List.map .match
 
---
+-- 
 fromString : String -> List Field
 fromString record =
   let
-    fs = match fields record |> Set.fromList |> Set.toList
+    fs = match fields record
     ts = match types record
+
+    foldHelper ((f, _) as pair) ((pairs, names) as acc) =
+      if Set.member f names then
+        acc
+      else
+        (pair :: pairs, Set.insert f names)
   in
-  List.map2 Field fs ts
+  List.map2 Tuple.pair fs ts
+    |> List.foldr foldHelper ([], Set.empty)
+    |> Tuple.first
+    |> List.map (\(f, t) -> Field f t)
 
 --
 toString : Options -> Field -> String
