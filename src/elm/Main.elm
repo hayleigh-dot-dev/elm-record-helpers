@@ -136,7 +136,7 @@ view model =
   let
     title : String
     title =
-      "elm-generate-updates"
+      "elm-record-helper"
 
     description : String
     description =
