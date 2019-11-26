@@ -51,7 +51,9 @@ match regex string =
   Regex.find regex string
     |> List.map .match
 
--- 
+-- Takes a string representing an Elm record and find alll the `field : type`
+-- pairs. Field names are guaranteed to be unique, with the *most recent*
+-- `field : type` pair being used.
 fromString : String -> List Field
 fromString record =
   let
