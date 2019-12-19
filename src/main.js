@@ -1,3 +1,5 @@
+import 'victormono'
+
 import { Elm } from './elm/Main.elm'
 import { promisify } from 'elm-promisify'
 

@@ -24,6 +24,7 @@
     "tailwindcss": "^1.1.2"
   },
   "dependencies": {
-    "elm-promisify": "^1.0.0"
+    "elm-promisify": "^1.0.0",
+    "victormono": "^1.2.9"
   }
 }
