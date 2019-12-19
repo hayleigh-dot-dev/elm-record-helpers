@@ -41,6 +41,7 @@ type alias Model =
   { getters : Bool
   , setters : Bool
   , updates : Bool
+  , copyOnClick : Bool
   , input : String
   }
 
@@ -50,6 +51,7 @@ init _ =
     { getters = False
     , setters = True
     , updates = False
+    , copyOnClick = True
     , input =
         String.join "\n"
           [ "type alias Model = "
@@ -68,6 +70,7 @@ type Option
   = Getters
   | Setters
   | Updates
+  | Copy
 
 update : Msg -> Model -> Tuple Model (Cmd Msg)
 update msg model =
@@ -84,14 +87,19 @@ update msg model =
       updateUpdates not model
         |> Tuple.pairWith Cmd.none
 
+    OptionToggled Copy ->
+      updateCopyOnClick not model
+        |> Tuple.pairWith Cmd.none
+
     InputChanged input ->
       setInput input model
         |> Tuple.pairWith Cmd.none
 
     OutputClicked ->
-      model
-        |> Tuple.pairWith (toJavascript CopyToClipboard)
-
+      if model.copyOnClick then
+        Tuple.pair model (toJavascript CopyToClipboard)
+      else
+        Tuple.pair model Cmd.none
 
 updateGetters : (Bool -> Bool) -> { r | getters : Bool } -> { r | getters : Bool }
 updateGetters f ({ getters } as r) =
@@ -105,6 +113,10 @@ updateUpdates : (Bool -> Bool) -> { r | updates : Bool } -> { r | updates : Bool
 updateUpdates f ({ updates } as r) =
   { r | updates = f updates }
 
+updateCopyOnClick : (Bool -> Bool) -> { r | copyOnClick : Bool } -> { r | copyOnClick : Bool }
+updateCopyOnClick f ({ copyOnClick } as r) =
+  { r | copyOnClick = f copyOnClick }
+
 setInput : String -> { r | input : String } -> { r | input : String }
 setInput val r =
   { r | input = val }
@@ -114,7 +126,7 @@ view : Model -> Html Msg
 view model =
   H.main_ [ A.class "h-screen flex flex-col p-4" ]
     -- About
-    [ H.section [ A.class "mb-4" ]
+    [ H.section [ A.class "mb-2" ]
       [ H.h1 [ A.class "text-2xl" ]
         [ H.text "elm-record-helpers" ]
       , H.p [ A.class "mb-2" ]
@@ -123,7 +135,7 @@ view model =
           , "functions for working with records. Elm currently only has special"
           , "syntax for accessing a record field. Setting a field to a new value"
           , "or updating a field by applying a function to the old value are"
-          , "just a common tasks, however, which means we end up writing a lot"
+          , "just as common tasks, however, which means we end up writing a lot"
           , "of repetitive boilerplate."
           ]
         ]
@@ -131,15 +143,15 @@ view model =
         [ H.text <| String.join " " 
           [ "Simply write or copy and paste your record type definitions in the"
           , "left input. Then look at the generated helper functions on the"
-          , "right. Clicking on the right text area will copy its contents to"
+          , "right. Clicking on the right text area will copy it's contents to"
           , "your clipboard."
           ]
         ]
       ]
     -- Options
-    , H.section []
+    , H.section [ A.class "my-2" ]
       [ H.ul []
-        [ H.li [ A.class "inline-block mr-6" ]
+        [ H.li [ A.class "inline-block mr-8" ]
           [ H.label []
             [ H.input 
               [ A.class "mr-1"
@@ -147,10 +159,10 @@ view model =
               , A.checked model.getters
               , E.onClick (OptionToggled Getters) 
               ] []
-            , H.text "Getters"
+            , H.text "Generate Getters"
             ]
           ]
-        , H.li [ A.class "inline-block mr-6" ]
+        , H.li [ A.class "inline-block mr-8" ]
           [ H.label []
             [ H.input
               [ A.class "mr-1"
@@ -158,10 +170,10 @@ view model =
               , A.checked model.setters
               , E.onClick (OptionToggled Setters) 
               ] []
-            , H.text "Setters"
+            , H.text "Generate Setters"
             ]
           ]
-        , H.li [ A.class "inline-block mr-6" ]
+        , H.li [ A.class "inline-block mr-8" ]
           [ H.label []
             [ H.input
               [ A.class "mr-1"
@@ -169,13 +181,24 @@ view model =
               , A.checked model.updates
               , E.onClick (OptionToggled Updates) 
               ] []
-            , H.text "Updates"
+            , H.text "Generate Updates"
+            ]
+          ]
+        , H.li [ A.class "inline-block mr-8" ]
+          [ H.label []
+            [ H.input
+              [ A.class "mr-1"
+              , A.type_ "checkbox"
+              , A.checked model.copyOnClick
+              , E.onClick (OptionToggled Copy) 
+              ] []
+            , H.text "Copy on click"
             ]
           ]
         ]
       ]
     -- Input
-    , H.section [ A.class "flex-1 flex mt-4" ]
+    , H.section [ A.class "flex-1 flex my-2" ]
       [ H.textarea
           [ A.attribute "data-input" ""
           , A.class "flex-1 outline-none bg-gray-800 border-r-8 focus:border-purple-500 font-mono h-full mr-4 whitespace-pre p-8 resize-none rounded-lg rounded-r-none text-white w-full"
@@ -189,6 +212,16 @@ view model =
         , A.readonly True
         , E.onClick OutputClicked
         ] []
+      ]
+    -- Font acknowledgement
+    , H.section [ A.class "mt-4" ]
+      [ H.p [ A.class "font-bold text-gray-500"]
+        [ H.text "The font used on this page is 'Victor Mono' and can be found here: "
+        , H.a 
+          [ A.class "hover:underline text-gray-600 hover:text-gray-900"
+          , A.href "https://rubjo.github.io/victor-mono/" ] 
+          [ H.text "https://rubjo.github.io/victor-mono/" ]
+        ]
       ]
     ]
 
