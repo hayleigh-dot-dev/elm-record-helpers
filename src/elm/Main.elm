@@ -38,9 +38,11 @@ main =
 
 ---- Model ---------------------------------------------------------------------
 type alias Model =
-  { getters : Bool
+  { headers : Bool
+  , getters : Bool
   , setters : Bool
   , updates : Bool
+  , monocle : Bool
   , copyOnClick : Bool
   , input : String
   }
@@ -48,10 +50,12 @@ type alias Model =
 init : () -> Tuple Model (Cmd Msg)
 init _ =
   Tuple.pairWith Cmd.none <|
-    { getters = False
+    { headers = False
+    , getters = False
     , setters = True
     , updates = False
-    , copyOnClick = True
+    , monocle = False
+    , copyOnClick = False
     , input =
         String.join "\n"
           [ "type alias Model = "
@@ -67,14 +71,20 @@ type Msg
   | OutputClicked
 
 type Option
-  = Getters
+  = Headers
+  | Getters
   | Setters
   | Updates
+  | Monocle
   | Copy
 
 update : Msg -> Model -> Tuple Model (Cmd Msg)
 update msg model =
   case msg of
+    OptionToggled Headers ->
+      updateHeaders not model
+        |> Tuple.pairWith Cmd.none
+
     OptionToggled Getters ->
       updateGetters not model
         |> Tuple.pairWith Cmd.none
@@ -85,6 +95,10 @@ update msg model =
 
     OptionToggled Updates ->
       updateUpdates not model
+        |> Tuple.pairWith Cmd.none
+
+    OptionToggled Monocle ->
+      updateMonocle not model
         |> Tuple.pairWith Cmd.none
 
     OptionToggled Copy ->
@@ -101,6 +115,10 @@ update msg model =
       else
         Tuple.pair model Cmd.none
 
+updateHeaders : (Bool -> Bool) -> { r | headers : Bool } -> { r | headers : Bool }
+updateHeaders f ({ headers } as r) =
+  { r | headers = f headers }
+
 updateGetters : (Bool -> Bool) -> { r | getters : Bool } -> { r | getters : Bool }
 updateGetters f ({ getters } as r) =
   { r | getters = f getters }
@@ -112,6 +130,10 @@ updateSetters f ({ setters } as r) =
 updateUpdates : (Bool -> Bool) -> { r | updates : Bool } -> { r | updates : Bool }
 updateUpdates f ({ updates } as r) =
   { r | updates = f updates }
+
+updateMonocle : (Bool -> Bool) -> { r | monocle : Bool } -> { r | monocle : Bool }
+updateMonocle f ({ monocle } as r) =
+  { r | monocle = f monocle }
 
 updateCopyOnClick : (Bool -> Bool) -> { r | copyOnClick : Bool } -> { r | copyOnClick : Bool }
 updateCopyOnClick f ({ copyOnClick } as r) =
@@ -156,10 +178,21 @@ view model =
             [ H.input 
               [ A.class "mr-1"
               , A.type_ "checkbox"
+              , A.checked model.headers
+              , E.onClick (OptionToggled Headers) 
+              ] []
+            , H.text "Headers"
+            ]
+          ]
+        , H.li [ A.class "inline-block mr-8" ]
+          [ H.label []
+            [ H.input 
+              [ A.class "mr-1"
+              , A.type_ "checkbox"
               , A.checked model.getters
               , E.onClick (OptionToggled Getters) 
               ] []
-            , H.text "Generate Getters"
+            , H.text "Getters"
             ]
           ]
         , H.li [ A.class "inline-block mr-8" ]
@@ -170,7 +203,7 @@ view model =
               , A.checked model.setters
               , E.onClick (OptionToggled Setters) 
               ] []
-            , H.text "Generate Setters"
+            , H.text "Setters"
             ]
           ]
         , H.li [ A.class "inline-block mr-8" ]
@@ -181,7 +214,18 @@ view model =
               , A.checked model.updates
               , E.onClick (OptionToggled Updates) 
               ] []
-            , H.text "Generate Updates"
+            , H.text "Updates"
+            ]
+          ]
+        , H.li [ A.class "inline-block mr-8" ]
+          [ H.label []
+            [ H.input
+              [ A.class "mr-1"
+              , A.type_ "checkbox"
+              , A.checked model.monocle
+              , E.onClick (OptionToggled Monocle) 
+              ] []
+            , H.text "elm-monocle Lenses"
             ]
           ]
         , H.li [ A.class "inline-block mr-8" ]
@@ -208,7 +252,7 @@ view model =
       , H.textarea
         [ A.attribute "data-output" ""
         , A.class "flex-1 outline-none bg-gray-800 border-l-8 focus:border-purple-500 font-mono h-full ml-4 whitespace-pre p-8 resize-none rounded-lg rounded-l-none text-white w-full"
-        , A.value <| parse (model.getters, model.setters, model.updates) model.input
+        , A.value <| parse model model.input
         , A.readonly True
         , E.onClick OutputClicked
         ] []
@@ -237,17 +281,27 @@ subscriptions _ =
 type alias Field =
   Tuple String String
 
+type alias Options r = 
+  { r
+  | headers : Bool 
+  , getters : Bool
+  , setters : Bool
+  , updates : Bool
+  , monocle : Bool
+  }
+
 ---- Parsers -------------------------------------------------------------------
-parse : (Bool, Bool, Bool) -> String -> String
-parse (getters, setters, updates) input =
+parse : Options r -> String -> String
+parse options input =
   Parser.run parser input
     |> Result.withDefault []
     |> List.concatMap (\field ->
       List.filterMap identity
-        [ Just ("-- " ++ Tuple.first field ++ " " |> String.padRight 80 '-')
-        , if getters then Just (fieldToGetter field) else Nothing
-        , if setters then Just (fieldToSetter field) else Nothing
-        , if updates then Just (fieldToUpdate field) else Nothing
+        [ if options.headers then Just ("-- " ++ Tuple.first field ++ " " |> String.padRight 80 '-') else Nothing
+        , if options.getters then Just (fieldToGetter field) else Nothing
+        , if options.setters then Just (fieldToSetter field) else Nothing
+        , if options.updates then Just (fieldToUpdate field) else Nothing
+        , if options.monocle then Just (fieldToLens field) else Nothing
         ]
     )
     |> String.join "\n\n"
@@ -364,6 +418,40 @@ fieldToUpdate (n, t) =
       , Tuple.pair "name" n
       , Tuple.pair "type" t
       ]
+
+fieldToLens : Field -> String
+fieldToLens (n, t) =
+  let
+    lensTemplate : String
+    lensTemplate =
+      String.join "\n"
+        [ "${name}Lens : Lens { r | ${name} : ${type} } ${type}"
+        , "${name}Lens ="
+        , "  Lens .${name} (\\b a -> { a | ${name} = b })"
+        ]
+
+    optionalTemplate : String
+    optionalTemplate =
+      String.join "\n"
+        [ "${name}Optional : Optional { r | ${name} : ${type} } ${just}"
+        , "${name}Optional ="
+        , "  Lens .${name} (\\b a -> { a | ${name} = Just b })"
+        ]
+
+  in
+  if String.startsWith "Maybe " t then
+    interpolate optionalTemplate <|
+      Set.fromList
+        [ Tuple.pair "name" n
+        , Tuple.pair "type" t
+        , Tuple.pair "just" (String.dropLeft 6 t)
+        ]
+  else
+    interpolate lensTemplate <|
+      Set.fromList
+        [ Tuple.pair "name" n
+        , Tuple.pair "type" t
+        ]
 
 -- Utils -----------------------------------------------------------------------
 interpolate : String -> Set (Tuple String String) -> String
