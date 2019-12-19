@@ -1,8 +1,0 @@
-main {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-}
-
-main > textarea {
-  min-height: 50vh;
-}
