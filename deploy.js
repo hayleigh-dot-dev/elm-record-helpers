@@ -8,7 +8,7 @@ function deploy (entry) {
   const parcel = new Bundler(entry, {
     outDir: './gh-pages',
     outFile: 'index.html',
-    publicUrl: '/elm-record-helper',
+    publicUrl: '/elm-record-helpers',
     watch: false,
     cache: false,
     contentHash: false,
