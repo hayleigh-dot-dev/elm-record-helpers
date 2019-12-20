@@ -51,6 +51,7 @@ main =
 type alias Model =
   { options : Data.Field.Options
   , copyOnClick : Bool
+  , encodeUrl : Bool
   , input : String
   }
 
@@ -58,8 +59,9 @@ init : String -> Tuple Model (Cmd Msg)
 init input =
   { options = Data.Field.defaults
   , copyOnClick = False
+  , encodeUrl = False
   , input = input
-  } |> Tuple.pairWith (toJavascript (UpdateUrl input))
+  } |> Tuple.pairWith Cmd.none
 
 -- Update --------------------------------------------------------------------
 type Msg
@@ -73,6 +75,7 @@ type Option
   | Updates
   | Monocle
   | Copy
+  | Encode
 
 update : Msg -> Model -> Tuple Model (Cmd Msg)
 update msg model =
@@ -97,9 +100,17 @@ update msg model =
       { model | copyOnClick = not model.copyOnClick }
         |> Tuple.pairWith Cmd.none
 
+    OptionToggled Encode ->
+      { model | encodeUrl = not model.encodeUrl }
+        |> Tuple.pairWith Cmd.none
+
     InputChanged input ->
-      { model | input = input }
-        |> Tuple.pairWith (toJavascript (UpdateUrl input))
+      if model.encodeUrl then
+        { model | input = input }
+          |> Tuple.pairWith (toJavascript (UpdateUrl input))
+      else
+        { model | input = input }
+          |> Tuple.pairWith Cmd.none
 
     OutputClicked ->
       if model.copyOnClick then
@@ -110,9 +121,9 @@ update msg model =
 -- View ----------------------------------------------------------------------
 view : Model -> Html Msg
 view model =
-  H.main_ [ A.class "p-4" ]
+  H.main_ [ A.class "p-4 container mx-auto" ]
     [ infoSection
-    , optionsSection model.options model.copyOnClick
+    , optionsSection model
     , inputSection model.options model.input
     , acknowledgementSection
     ]
@@ -122,7 +133,7 @@ infoSection =
   H.section [ A.id "info", A.class "mb-4" ]
     [ H.h1 [ A.class "text-3xl font-bold" ]
       [ H.text "elm-record-helpers" ]
-    , H.p [ A.class "" ]
+    , H.p [ A.class "pb-2" ]
       [ H.text <| String.join " " 
         [ "This handy web app automagically generates some useful helper"
         , "functions for working with records. Elm currently only has special"
@@ -142,8 +153,8 @@ infoSection =
       ]
     ]
 
-optionsSection : Data.Field.Options -> Bool -> Html Msg
-optionsSection options copyOnClick =
+optionsSection : Model -> Html Msg
+optionsSection { options, copyOnClick, encodeUrl } =
   H.section [ A.id "options", A.class "mb-4" ]
     [ H.h2 [ A.class "text-xl underline" ]
       [ H.text "Options" ]
@@ -160,6 +171,7 @@ optionsSection options copyOnClick =
         |> Ui.List.addItemClass "inline-block mr-8"
         |> Ui.List.addItems (viewOptions
           [ ("Copy-on-click", copyOnClick, OptionToggled Copy)
+          , ("Encode in URL", encodeUrl, OptionToggled Encode)
           ])
         |> Ui.List.toHtml
     ]
@@ -168,12 +180,12 @@ inputSection : Data.Field.Options -> String -> Html Msg
 inputSection options input =
   H.section [ A.id "input", A.class "mb-4" ]
     [ viewCode
-        |> Ui.Textarea.addClass "bg-gray-100 text-gray-900 mr-4"
+        |> Ui.Textarea.addClass "bg-gray-100 text-gray-900 md:mr-4 sm:my-2 md:my-0"
         |> Ui.Textarea.setHandler InputChanged
         |> Ui.Textarea.setValue input
         |> Ui.Textarea.toHtml
     , viewCode
-        |> Ui.Textarea.addClass "bg-gray-800 text-white ml-4"
+        |> Ui.Textarea.addClass "bg-gray-800 text-white md:ml-4 sm:my-2 md:my-0"
         |> Ui.Textarea.addAttr (E.onClick OutputClicked)
         |> Ui.Textarea.addAttr (A.attribute "data-output" "")
         |> Ui.Textarea.setReadonly True
@@ -188,7 +200,7 @@ acknowledgementSection : Html Msg
 acknowledgementSection =
   H.section [ A.id "acknowledgements", A.class "mb-4" ]
     [ H.p [ A.class "font-bold text-gray-500"]
-      [ H.text "The font used on this page is 'Victor Mono' and can be found here: "
+      [ H.text "The font used for the text input is 'Victor Mono' and can be found here: "
       , H.a 
         [ A.class "hover:underline text-gray-600 hover:text-gray-900"
         , A.href "https://rubjo.github.io/victor-mono/" ] 
