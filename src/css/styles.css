@@ -1,0 +1,33 @@
+/* Mobile */
+@media (max-width: 640px) {
+  main {
+    display: grid;
+    grid-template-rows: auto auto auto auto;
+  }
+
+  #input {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+}
+
+/* Desktop */
+@media (min-width: 641px) {
+  main {
+    display: grid;
+    grid-template-rows: auto auto auto auto;
+  }
+
+  #input {
+    display: flex;
+    flex-direction: row;
+    height: 50vh;
+  }
+}
+
+textarea {
+  text-rendering: optimizeLegibility !important;
+  font-family: 'Victor Mono' !important;
+  font-variant-ligatures: normal !important;
+}
