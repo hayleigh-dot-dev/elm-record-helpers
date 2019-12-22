@@ -7,3 +7,6 @@ node_modules
 
 # Elm build artifacts
 elm-stuff
+
+# github pages build directory.
+gh-pages
